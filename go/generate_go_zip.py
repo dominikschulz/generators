@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-C/C++ ZIP Generator
+Go ZIP Generator
 Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
 Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
 
-generate_c_zip.py: Generator for C/C++ ZIP
+generate_go_zip.py: Generator for Go ZIP
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -30,15 +30,15 @@ import shutil
 
 sys.path.append(os.path.split(os.getcwd())[0])
 import common
-from c_released_files import released_files
+from go_released_files import released_files
 
-class CZipGenerator(common.Generator):
-    tmp_dir          = '/tmp/generator/c'
+class GoZipGenerator(common.Generator):
+    tmp_dir          = '/tmp/generator/go'
     tmp_source_dir   = os.path.join(tmp_dir, 'source')
     tmp_examples_dir = os.path.join(tmp_dir, 'examples')
 
     def get_bindings_name(self):
-        return 'c'
+        return 'go'
 
     def prepare(self):
         common.recreate_directory(self.tmp_dir)
@@ -57,22 +57,21 @@ class CZipGenerator(common.Generator):
         if not os.path.exists(tmp_examples_device_dir):
             os.makedirs(tmp_examples_device_dir)
 
-        for example in common.find_device_examples(device, '^example_.*\.c$'):
+        for example in common.find_device_examples(device, '^example_.*\.go$'):
             shutil.copy(example[1], tmp_examples_device_dir)
 
     def finish(self):
         root_dir = self.get_bindings_root_directory()
 
         # Copy IP Connection examples
-        for example in common.find_examples(root_dir, '^example_.*\.c$'):
+        for example in common.find_examples(root_dir, '^example_.*\.go$'):
             shutil.copy(example[1], self.tmp_examples_dir)
 
         # Copy bindings and readme
         for filename in released_files:
             shutil.copy(os.path.join(root_dir, 'bindings', filename), self.tmp_source_dir)
 
-        shutil.copy(os.path.join(root_dir, 'ip_connection.c'), self.tmp_source_dir)
-        shutil.copy(os.path.join(root_dir, 'ip_connection.h'), self.tmp_source_dir)
+        shutil.copy(os.path.join(root_dir, 'ip_connection.go'), self.tmp_source_dir)
         shutil.copy(os.path.join(root_dir, 'Makefile'),        self.tmp_source_dir)
         shutil.copy(os.path.join(root_dir, 'changelog.txt'),   self.tmp_dir)
         shutil.copy(os.path.join(root_dir, 'readme.txt'),      self.tmp_dir)
@@ -83,7 +82,7 @@ class CZipGenerator(common.Generator):
         common.make_zip(self.get_bindings_name(), self.tmp_dir, root_dir, version)
 
 def generate(bindings_root_directory):
-    common.generate(bindings_root_directory, 'en', CZipGenerator)
+    common.generate(bindings_root_directory, 'en', GoZipGenerator)
 
 if __name__ == "__main__":
     generate(os.getcwd())

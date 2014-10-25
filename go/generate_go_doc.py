@@ -349,10 +349,10 @@ Konstanten
         reg = common.select_lang(register_str).format(self.get_underscore_name(),
                                                       self.get_camel_case_name(),
                                                       self.get_category().lower())
-        bf = self.get_c_methods('bf')
-        af = self.get_c_methods('af')
-        ccf = self.get_c_methods('ccf')
-        c = self.get_c_callbacks()
+        bf = self.get_go_methods('bf')
+        af = self.get_go_methods('af')
+        ccf = self.get_go_methods('ccf')
+        c = self.get_go_callbacks()
         api_str = ''
         if bf:
             api_str += common.select_lang(common.bf_str).format(cre + des, bf)
@@ -380,7 +380,7 @@ Konstanten
 
         return common.select_lang(api).format(ref, self.replace_c_function_links(self.get_api_doc()), api_str)
 
-    def get_c_doc(self):
+    def get_go_doc(self):
         doc  = common.make_rst_header(self)
         doc += common.make_rst_summary(self)
         doc += self.get_c_examples()
@@ -388,8 +388,8 @@ Konstanten
 
         return doc
 
-class CDocPacket(c_common.CPacket):
-    def get_c_formatted_doc(self):
+class GoDocPacket(c_common.CPacket):
+    def get_go_formatted_doc(self):
         text = common.select_lang(self.get_doc()[1])
         constants = {'en': 'defines', 'de': 'Defines'}
 
@@ -412,31 +412,31 @@ class CDocPacket(c_common.CPacket):
 
         return common.shift_right(text, 1)
 
-class CDocGenerator(common.DocGenerator):
+class GoDocGenerator(common.DocGenerator):
     def get_bindings_name(self):
-        return 'c'
+        return 'go'
 
     def get_bindings_display_name(self):
-        return 'C/C++'
+        return 'Go'
 
     def get_doc_rst_filename_part(self):
-        return 'C'
+        return 'go'
 
     def get_doc_example_regex(self):
-        return '^example_.*\.c$'
+        return '^example_.*\.go$'
 
     def get_device_class(self):
-        return CDocDevice
+        return GoDocDevice
 
     def get_packet_class(self):
-        return CDocPacket
+        return GoDocPacket
 
     def get_element_class(self):
-        return c_common.CElement
+        return go_common.GoElement
 
     def generate(self, device):
         rst = open(device.get_doc_rst_path(), 'wb')
-        rst.write(device.get_c_doc())
+        rst.write(device.get_go_doc())
         rst.close()
 
 def generate(bindings_root_directory, language):

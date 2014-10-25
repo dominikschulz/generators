@@ -1,3 +1,4 @@
+package ipconnection
 /*
  * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
@@ -7,106 +8,45 @@
  * Commons Zero (CC0 1.0) License for more details.
  */
 
-#ifndef IP_CONNECTION_H
-#define IP_CONNECTION_H
+import (
+	"strings"
+	"fmt"
+	"log"
+)
 
-/**
- * \defgroup IPConnection IP Connection
- */
-
-#ifndef __STDC_LIMIT_MACROS
-	#define __STDC_LIMIT_MACROS
-#endif
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
-
-#if !defined __cplusplus && defined __GNUC__
-	#include <stdbool.h>
-#endif
-
-#ifdef _WIN32
-	#ifndef WIN32_LEAN_AND_MEAN
-		#define WIN32_LEAN_AND_MEAN
-	#endif
-	#include <windows.h>
-#else
-	#include <pthread.h>
-	#include <semaphore.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-enum {
-	E_OK = 0,
-	E_TIMEOUT = -1,
-	E_NO_STREAM_SOCKET = -2,
-	E_HOSTNAME_INVALID = -3,
-	E_NO_CONNECT = -4,
-	E_NO_THREAD = -5,
-	E_NOT_ADDED = -6, // unused since v2.0
-	E_ALREADY_CONNECTED = -7,
-	E_NOT_CONNECTED = -8,
-	E_INVALID_PARAMETER = -9, // error response from device
-	E_NOT_SUPPORTED = -10, // error response from device
+const (
+	E_OK = 0
+	E_TIMEOUT = -1
+	E_NO_STREAM_SOCKET = -2
+	E_HOSTNAME_INVALID = -3
+	E_NO_CONNECT = -4
+	E_NO_THREAD = -5
+	E_NOT_ADDED = -6 // unused since v2.0
+	E_ALREADY_CONNECTED = -7
+	E_NOT_CONNECTED = -8
+	E_INVALID_PARAMETER = -9 // error response from device
+	E_NOT_SUPPORTED = -10 // error response from device
 	E_UNKNOWN_ERROR_CODE = -11 // error response from device
-};
+)
 
-#ifdef IPCON_EXPOSE_INTERNALS
-
-typedef struct _Socket Socket;
-
-typedef struct {
-#ifdef _WIN32
-	CRITICAL_SECTION handle;
-#else
-	pthread_mutex_t handle;
-#endif
-} Mutex;
-
-void mutex_create(Mutex *mutex);
-
-void mutex_destroy(Mutex *mutex);
-
-void mutex_lock(Mutex *mutex);
-
-void mutex_unlock(Mutex *mutex);
-
-typedef struct {
-#ifdef _WIN32
-	HANDLE handle;
-#else
+type Event struct {
 	pthread_cond_t condition;
 	pthread_mutex_t mutex;
 	bool flag;
-#endif
 } Event;
 
-typedef struct {
-#ifdef _WIN32
-	HANDLE handle;
-#else
+type Semaphore struct {
 	sem_t object;
 	sem_t *pointer;
-#endif
 } Semaphore;
 
-typedef void (*ThreadFunction)(void *opaque);
-
-typedef struct {
-#ifdef _WIN32
-	HANDLE handle;
-	DWORD id;
-#else
+type Thread struct {
 	pthread_t handle;
-#endif
 	ThreadFunction function;
 	void *opaque;
 } Thread;
 
-typedef struct {
+type Table struct {
 	Mutex mutex;
 	int used;
 	int allocated;
@@ -114,66 +54,32 @@ typedef struct {
 	void **values;
 } Table;
 
-typedef struct _QueueItem {
+type _QueueItem struct {
 	struct _QueueItem *next;
 	int kind;
 	void *data;
 } QueueItem;
 
-typedef struct {
+type Queue struct {
 	Mutex mutex;
 	Semaphore semaphore;
 	QueueItem *head;
 	QueueItem *tail;
-} Queue;
+}
 
-#if defined _MSC_VER || defined __BORLANDC__
-	#pragma pack(push)
-	#pragma pack(1)
-	#define ATTRIBUTE_PACKED
-#elif defined __GNUC__
-	#ifdef _WIN32
-		// workaround struct packing bug in GCC 4.7 on Windows
-		// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=52991
-		#define ATTRIBUTE_PACKED __attribute__((gcc_struct, packed))
-	#else
-		#define ATTRIBUTE_PACKED __attribute__((packed))
-	#endif
-#else
-	#error unknown compiler, do not know how to enable struct packing
-#endif
+type PacketHeader struct {
+	uid uint32;
+	length uint8;
+	function_id uint8;
+	sequence_number_and_options uint8;
+	error_code_and_future_use uint8;
+}
 
-typedef struct {
-	uint32_t uid;
-	uint8_t length;
-	uint8_t function_id;
-	uint8_t sequence_number_and_options;
-	uint8_t error_code_and_future_use;
-} ATTRIBUTE_PACKED PacketHeader;
-
-typedef struct {
+type Packet struct {
 	PacketHeader header;
 	uint8_t payload[64];
 	uint8_t optional_data[8];
-} ATTRIBUTE_PACKED Packet;
-
-#if defined _MSC_VER || defined __BORLANDC__
-	#pragma pack(pop)
-#endif
-#undef ATTRIBUTE_PACKED
-
-#endif // IPCON_EXPOSE_INTERNALS
-
-typedef struct _IPConnection IPConnection;
-typedef struct _IPConnectionPrivate IPConnectionPrivate;
-typedef struct _Device Device;
-typedef struct _DevicePrivate DevicePrivate;
-
-#ifdef IPCON_EXPOSE_INTERNALS
-
-typedef struct _CallbackContext CallbackContext;
-
-#endif
+}
 
 typedef void (*EnumerateCallbackFunction)(const char *uid,
                                           const char *connected_uid,
@@ -294,32 +200,32 @@ int device_send_request(DevicePrivate *device_p, Packet *request, Packet *respon
  *
  * Possible IDs for ipcon_register_callback.
  */
-enum {
-	IPCON_CALLBACK_ENUMERATE = 253,
-	IPCON_CALLBACK_CONNECTED = 0,
+const (
+	IPCON_CALLBACK_ENUMERATE = 253
+	IPCON_CALLBACK_CONNECTED = 0
 	IPCON_CALLBACK_DISCONNECTED = 1
-};
+)
 
 /**
  * \ingroup IPConnection
  *
  * Possible values for enumeration_type parameter of EnumerateCallback.
  */
-enum {
-	IPCON_ENUMERATION_TYPE_AVAILABLE = 0,
-	IPCON_ENUMERATION_TYPE_CONNECTED = 1,
+const (
+	IPCON_ENUMERATION_TYPE_AVAILABLE = 0
+	IPCON_ENUMERATION_TYPE_CONNECTED = 1
 	IPCON_ENUMERATION_TYPE_DISCONNECTED = 2
-};
+)
 
 /**
  * \ingroup IPConnection
  *
  * Possible values for connect_reason parameter of ConnectedCallback.
  */
-enum {
-	IPCON_CONNECT_REASON_REQUEST = 0,
+const (
+	IPCON_CONNECT_REASON_REQUEST = 0
 	IPCON_CONNECT_REASON_AUTO_RECONNECT = 1
-};
+)
 
 /**
  * \ingroup IPConnection
@@ -798,584 +704,6 @@ typedef struct {
 
 /*****************************************************************************
  *
- *                                 SHA1
- *
- *****************************************************************************/
-
-/*
- * Based on the SHA-1 C implementation by Steve Reid <steve@edmweb.com>
- * 100% Public Domain
- *
- * Test Vectors (from FIPS PUB 180-1)
- * "abc"
- *   A9993E36 4706816A BA3E2571 7850C26C 9CD0D89D
- * "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
- *   84983E44 1C3BD26E BAAE4AA1 F95129E5 E54670F1
- * A million repetitions of "a"
- *   34AA973C D4C4DAA4 F61EEB2B DBAD2731 6534016F
- */
-
-#define SHA1_BLOCK_LENGTH 64
-#define SHA1_DIGEST_LENGTH 20
-
-typedef struct {
-    uint32_t state[5];
-    uint64_t count;
-    uint8_t buffer[SHA1_BLOCK_LENGTH];
-} SHA1;
-
-#define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
-
-// blk0() and blk() perform the initial expand. blk0() deals with host endianess
-#define blk0(i) (block[i] = htonl(block[i]))
-#define blk(i) (block[i&15] = rol(block[(i+13)&15]^block[(i+8)&15]^block[(i+2)&15]^block[i&15],1))
-
-// (R0+R1), R2, R3, R4 are the different operations (rounds) used in SHA1
-#define R0(v,w,x,y,z,i) z+=((w&(x^y))^y)+blk0(i)+0x5A827999+rol(v,5);w=rol(w,30);
-#define R1(v,w,x,y,z,i) z+=((w&(x^y))^y)+blk(i)+0x5A827999+rol(v,5);w=rol(w,30);
-#define R2(v,w,x,y,z,i) z+=(w^x^y)+blk(i)+0x6ED9EBA1+rol(v,5);w=rol(w,30);
-#define R3(v,w,x,y,z,i) z+=(((w|x)&y)|(w&x))+blk(i)+0x8F1BBCDC+rol(v,5);w=rol(w,30);
-#define R4(v,w,x,y,z,i) z+=(w^x^y)+blk(i)+0xCA62C1D6+rol(v,5);w=rol(w,30);
-
-// hash a single 512-bit block. this is the core of the algorithm
-static uint32_t sha1_transform(SHA1 *sha1, const uint8_t buffer[SHA1_BLOCK_LENGTH]) {
-	uint32_t a, b, c, d, e;
-	uint32_t block[SHA1_BLOCK_LENGTH / 4];
-
-	memcpy(&block, buffer, SHA1_BLOCK_LENGTH);
-
-	// copy sha1->state[] to working variables
-	a = sha1->state[0];
-	b = sha1->state[1];
-	c = sha1->state[2];
-	d = sha1->state[3];
-	e = sha1->state[4];
-
-	// 4 rounds of 20 operations each (loop unrolled)
-	R0(a,b,c,d,e, 0); R0(e,a,b,c,d, 1); R0(d,e,a,b,c, 2); R0(c,d,e,a,b, 3);
-	R0(b,c,d,e,a, 4); R0(a,b,c,d,e, 5); R0(e,a,b,c,d, 6); R0(d,e,a,b,c, 7);
-	R0(c,d,e,a,b, 8); R0(b,c,d,e,a, 9); R0(a,b,c,d,e,10); R0(e,a,b,c,d,11);
-	R0(d,e,a,b,c,12); R0(c,d,e,a,b,13); R0(b,c,d,e,a,14); R0(a,b,c,d,e,15);
-	R1(e,a,b,c,d,16); R1(d,e,a,b,c,17); R1(c,d,e,a,b,18); R1(b,c,d,e,a,19);
-
-	R2(a,b,c,d,e,20); R2(e,a,b,c,d,21); R2(d,e,a,b,c,22); R2(c,d,e,a,b,23);
-	R2(b,c,d,e,a,24); R2(a,b,c,d,e,25); R2(e,a,b,c,d,26); R2(d,e,a,b,c,27);
-	R2(c,d,e,a,b,28); R2(b,c,d,e,a,29); R2(a,b,c,d,e,30); R2(e,a,b,c,d,31);
-	R2(d,e,a,b,c,32); R2(c,d,e,a,b,33); R2(b,c,d,e,a,34); R2(a,b,c,d,e,35);
-	R2(e,a,b,c,d,36); R2(d,e,a,b,c,37); R2(c,d,e,a,b,38); R2(b,c,d,e,a,39);
-
-	R3(a,b,c,d,e,40); R3(e,a,b,c,d,41); R3(d,e,a,b,c,42); R3(c,d,e,a,b,43);
-	R3(b,c,d,e,a,44); R3(a,b,c,d,e,45); R3(e,a,b,c,d,46); R3(d,e,a,b,c,47);
-	R3(c,d,e,a,b,48); R3(b,c,d,e,a,49); R3(a,b,c,d,e,50); R3(e,a,b,c,d,51);
-	R3(d,e,a,b,c,52); R3(c,d,e,a,b,53); R3(b,c,d,e,a,54); R3(a,b,c,d,e,55);
-	R3(e,a,b,c,d,56); R3(d,e,a,b,c,57); R3(c,d,e,a,b,58); R3(b,c,d,e,a,59);
-
-	R4(a,b,c,d,e,60); R4(e,a,b,c,d,61); R4(d,e,a,b,c,62); R4(c,d,e,a,b,63);
-	R4(b,c,d,e,a,64); R4(a,b,c,d,e,65); R4(e,a,b,c,d,66); R4(d,e,a,b,c,67);
-	R4(c,d,e,a,b,68); R4(b,c,d,e,a,69); R4(a,b,c,d,e,70); R4(e,a,b,c,d,71);
-	R4(d,e,a,b,c,72); R4(c,d,e,a,b,73); R4(b,c,d,e,a,74); R4(a,b,c,d,e,75);
-	R4(e,a,b,c,d,76); R4(d,e,a,b,c,77); R4(c,d,e,a,b,78); R4(b,c,d,e,a,79);
-
-	// add the working variables back into sha1->state[]
-	sha1->state[0] += a;
-	sha1->state[1] += b;
-	sha1->state[2] += c;
-	sha1->state[3] += d;
-	sha1->state[4] += e;
-
-	// wipe variables
-	a = b = c = d = e = 0;
-
-	return a; // return a to avoid dead-store warning from clang static analyzer
-}
-
-static void sha1_init(SHA1 *sha1) {
-	sha1->state[0] = 0x67452301;
-	sha1->state[1] = 0xEFCDAB89;
-	sha1->state[2] = 0x98BADCFE;
-	sha1->state[3] = 0x10325476;
-	sha1->state[4] = 0xC3D2E1F0;
-	sha1->count = 0;
-}
-
-static void sha1_update(SHA1 *sha1, const uint8_t *data, size_t length) {
-	size_t i, j;
-
-	j = (size_t)((sha1->count >> 3) & 63);
-	sha1->count += (length << 3);
-
-	if ((j + length) > 63) {
-		i = 64 - j;
-
-		memcpy(&sha1->buffer[j], data, i);
-		sha1_transform(sha1, sha1->buffer);
-
-		for (; i + 63 < length; i += 64) {
-			sha1_transform(sha1, &data[i]);
-		}
-
-		j = 0;
-	} else {
-		i = 0;
-	}
-
-	memcpy(&sha1->buffer[j], &data[i], length - i);
-}
-
-static void sha1_final(SHA1 *sha1, uint8_t digest[SHA1_DIGEST_LENGTH]) {
-	uint32_t i;
-	uint8_t count[8];
-
-	for (i = 0; i < 8; i++) {
-		// this is endian independent
-		count[i] = (uint8_t)((sha1->count >> ((7 - (i & 7)) * 8)) & 255);
-	}
-
-	sha1_update(sha1, (uint8_t *)"\200", 1);
-
-	while ((sha1->count & 504) != 448) {
-		sha1_update(sha1, (uint8_t *)"\0", 1);
-	}
-
-	sha1_update(sha1, count, 8);
-
-	for (i = 0; i < SHA1_DIGEST_LENGTH; i++) {
-		digest[i] = (uint8_t)((sha1->state[i >> 2] >> ((3 - (i & 3)) * 8)) & 255);
-	}
-
-	memset(sha1, 0, sizeof(*sha1));
-}
-
-#undef rol
-#undef blk0
-#undef blk
-#undef R0
-#undef R1
-#undef R2
-#undef R3
-#undef R4
-
-/*****************************************************************************
- *
- *                                 Utils
- *
- *****************************************************************************/
-
-static size_t string_length(const char *s, size_t max_length) {
-	const char *p = s;
-	size_t n = 0;
-
-	while (*p != '\0' && n < max_length) {
-		++p;
-		++n;
-	}
-
-	return n;
-}
-
-#ifdef _MSC_VER
-
-// difference between Unix epoch and January 1, 1601 in 100-nanoseconds
-#define DELTA_EPOCH 116444736000000000ULL
-
-typedef void (WINAPI *GETSYSTEMTIMEPRECISEASFILETIME)(LPFILETIME);
-
-// implement gettimeofday based on GetSystemTime(Precise)AsFileTime
-static int gettimeofday(struct timeval *tv, struct timezone *tz) {
-	GETSYSTEMTIMEPRECISEASFILETIME ptr_GetSystemTimePreciseAsFileTime = NULL;
-	FILETIME ft;
-	uint64_t t;
-
-	(void)tz;
-
-	if (tv != NULL) {
-		ptr_GetSystemTimePreciseAsFileTime =
-		  (GETSYSTEMTIMEPRECISEASFILETIME)GetProcAddress(GetModuleHandleA("kernel32"),
-		                                                 "GetSystemTimePreciseAsFileTime");
-
-		if (ptr_GetSystemTimePreciseAsFileTime != NULL) {
-			ptr_GetSystemTimePreciseAsFileTime(&ft);
-		} else {
-			GetSystemTimeAsFileTime(&ft);
-		}
-
-		t = ((uint64_t)ft.dwHighDateTime << 32) | (uint64_t)ft.dwLowDateTime;
-		t = (t - DELTA_EPOCH) / 10; // 100-nanoseconds to microseconds
-
-		tv->tv_sec = (long)(t / 1000000UL);
-		tv->tv_usec = (long)(t % 1000000UL);
-	}
-
-	return 0;
-}
-
-#endif
-
-#ifndef _WIN32
-
-static int read_uint32_non_blocking(const char *filename, uint32_t *value) {
-	int fd = open(filename, O_NONBLOCK);
-	int rc;
-
-	if (fd < 0) {
-		return -1;
-	}
-
-	rc = read(fd, value, sizeof(uint32_t));
-
-	close(fd);
-
-	return rc != sizeof(uint32_t) ? -1 : 0;
-}
-
-#endif
-
-// this function is not meant to be called often,
-// this function is meant to provide a good random seed value
-uint32_t get_random_uint32(void) {
-	uint32_t r;
-	struct timeval tv;
-	uint32_t seconds;
-	uint32_t microseconds;
-#ifdef _WIN32
-	HCRYPTPROV hprovider;
-
-	if (!CryptAcquireContext(&hprovider, NULL, NULL, PROV_RSA_FULL,
-	                         CRYPT_VERIFYCONTEXT | CRYPT_SILENT)) {
-		goto fallback;
-	}
-
-	if (!CryptGenRandom(hprovider, sizeof(r), (BYTE *)&r)) {
-		CryptReleaseContext(hprovider, 0);
-
-		goto fallback;
-	}
-
-	CryptReleaseContext(hprovider, 0);
-#else
-	// try /dev/urandom first, if not available or a read would
-	// block then fall back to /dev/random
-	if (read_uint32_non_blocking("/dev/urandom", &r) < 0) {
-		if (read_uint32_non_blocking("/dev/random", &r) < 0) {
-			goto fallback;
-		}
-	}
-#endif
-
-	return r;
-
-fallback:
-	// if no other random source is available fall back to the current time
-	if (gettimeofday(&tv, NULL) < 0) {
-		seconds = (uint32_t)time(NULL);
-		microseconds = 0;
-	} else {
-		seconds = tv.tv_sec;
-		microseconds = tv.tv_usec;
-	}
-
-	return (seconds << 26 | seconds >> 6) + microseconds + getpid(); // overflow is intended
-}
-
-static void hmac_sha1(uint8_t *secret, int secret_length,
-                      uint8_t *data, int data_length,
-                      uint8_t digest[SHA1_DIGEST_LENGTH]) {
-	SHA1 sha1;
-	uint8_t secret_digest[SHA1_DIGEST_LENGTH];
-	uint8_t inner_digest[SHA1_DIGEST_LENGTH];
-	uint8_t ipad[SHA1_BLOCK_LENGTH];
-	uint8_t opad[SHA1_BLOCK_LENGTH];
-	int i;
-
-	if (secret_length > SHA1_BLOCK_LENGTH) {
-		sha1_init(&sha1);
-		sha1_update(&sha1, secret, secret_length);
-		sha1_final(&sha1, secret_digest);
-
-		secret = secret_digest;
-		secret_length = SHA1_DIGEST_LENGTH;
-	}
-
-	// inner digest
-	for (i = 0; i < secret_length; ++i) {
-		ipad[i] = secret[i] ^ 0x36;
-	}
-
-	for (i = secret_length; i < SHA1_BLOCK_LENGTH; ++i) {
-		ipad[i] = 0x36;
-	}
-
-	sha1_init(&sha1);
-	sha1_update(&sha1, ipad, SHA1_BLOCK_LENGTH);
-	sha1_update(&sha1, data, data_length);
-	sha1_final(&sha1, inner_digest);
-
-	// outer digest
-	for (i = 0; i < secret_length; ++i) {
-		opad[i] = secret[i] ^ 0x5C;
-	}
-
-	for (i = secret_length; i < SHA1_BLOCK_LENGTH; ++i) {
-		opad[i] = 0x5C;
-	}
-
-	sha1_init(&sha1);
-	sha1_update(&sha1, opad, SHA1_BLOCK_LENGTH);
-	sha1_update(&sha1, inner_digest, SHA1_DIGEST_LENGTH);
-	sha1_final(&sha1, digest);
-}
-
-/*****************************************************************************
- *
- *                                 BASE58
- *
- *****************************************************************************/
-
-#define BASE58_MAX_STR_SIZE 13
-
-static const char BASE58_ALPHABET[] = \
-	"123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
-
-#if 0
-static void base58_encode(uint64_t value, char *str) {
-	uint32_t mod;
-	char reverse_str[BASE58_MAX_STR_SIZE] = {'\0'};
-	int i = 0;
-	int k = 0;
-
-	while (value >= 58) {
-		mod = value % 58;
-		reverse_str[i] = BASE58_ALPHABET[mod];
-		value = value / 58;
-		++i;
-	}
-
-	reverse_str[i] = BASE58_ALPHABET[value];
-
-	for (k = 0; k <= i; k++) {
-		str[k] = reverse_str[i - k];
-	}
-
-	for (; k < BASE58_MAX_STR_SIZE; k++) {
-		str[k] = '\0';
-	}
-}
-#endif
-
-static uint64_t base58_decode(const char *str) {
-	int i;
-	int k;
-	uint64_t value = 0;
-	uint64_t base = 1;
-
-	for (i = 0; i < BASE58_MAX_STR_SIZE; i++) {
-		if (str[i] == '\0') {
-			break;
-		}
-	}
-
-	--i;
-
-	for (; i >= 0; i--) {
-		if (str[i] == '\0') {
-			continue;
-		}
-
-		for (k = 0; k < 58; k++) {
-			if (BASE58_ALPHABET[k] == str[i]) {
-				break;
-			}
-		}
-
-		value += k * base;
-		base *= 58;
-	}
-
-	return value;
-}
-
-/*****************************************************************************
- *
- *                                 Socket
- *
- *****************************************************************************/
-
-struct _Socket {
-#ifdef _WIN32
-	SOCKET handle;
-#else
-	int handle;
-#endif
-	Mutex send_mutex; // used to serialize socket_send calls
-};
-
-#ifdef _WIN32
-
-static int socket_create(Socket *socket_, int domain, int type, int protocol) {
-	BOOL flag = 1;
-
-	socket_->handle = socket(domain, type, protocol);
-
-	if (socket_->handle == INVALID_SOCKET) {
-		return -1;
-	}
-
-	if (setsockopt(socket_->handle, IPPROTO_TCP, TCP_NODELAY,
-	               (const char *)&flag, sizeof(flag)) == SOCKET_ERROR) {
-		closesocket(socket_->handle);
-
-		return -1;
-	}
-
-	mutex_create(&socket_->send_mutex);
-
-	return 0;
-}
-
-static void socket_destroy(Socket *socket) {
-	mutex_destroy(&socket->send_mutex);
-
-	closesocket(socket->handle);
-}
-
-static int socket_connect(Socket *socket, struct sockaddr_in *address, int length) {
-	return connect(socket->handle, (struct sockaddr *)address, length) == SOCKET_ERROR ? -1 : 0;
-}
-
-static void socket_shutdown(Socket *socket) {
-	shutdown(socket->handle, SD_BOTH);
-}
-
-static int socket_receive(Socket *socket, void *buffer, int length) {
-	length = recv(socket->handle, (char *)buffer, length, 0);
-
-	if (length == SOCKET_ERROR) {
-		length = -1;
-
-		if (WSAGetLastError() == WSAEINTR) {
-			errno = EINTR;
-		} else {
-			errno = EFAULT;
-		}
-	}
-
-	return length;
-}
-
-static int socket_send(Socket *socket, void *buffer, int length) {
-	mutex_lock(&socket->send_mutex);
-
-	length = send(socket->handle, (const char *)buffer, length, 0);
-
-	mutex_unlock(&socket->send_mutex);
-
-	if (length == SOCKET_ERROR) {
-		length = -1;
-	}
-
-	return length;
-}
-
-#else
-
-static int socket_create(Socket *socket_, int domain, int type, int protocol) {
-	int flag = 1;
-
-	socket_->handle = socket(domain, type, protocol);
-
-	if (socket_->handle < 0) {
-		return -1;
-	}
-
-	if (setsockopt(socket_->handle, IPPROTO_TCP, TCP_NODELAY, (void *)&flag,
-	               sizeof(flag)) < 0) {
-		close(socket_->handle);
-
-		return -1;
-	}
-
-	mutex_create(&socket_->send_mutex);
-
-	return 0;
-}
-
-static void socket_destroy(Socket *socket) {
-	mutex_destroy(&socket->send_mutex);
-
-	close(socket->handle);
-}
-
-static int socket_connect(Socket *socket, struct sockaddr_in *address, int length) {
-	return connect(socket->handle, (struct sockaddr *)address, length);
-}
-
-static void socket_shutdown(Socket *socket) {
-	shutdown(socket->handle, SHUT_RDWR);
-}
-
-static int socket_receive(Socket *socket, void *buffer, int length) {
-	return recv(socket->handle, buffer, length, 0);
-}
-
-static int socket_send(Socket *socket, void *buffer, int length) {
-	int rc;
-
-	mutex_lock(&socket->send_mutex);
-
-	rc = send(socket->handle, buffer, length, 0);
-
-	mutex_unlock(&socket->send_mutex);
-
-	return rc;
-}
-
-#endif
-
-/*****************************************************************************
- *
- *                                 Mutex
- *
- *****************************************************************************/
-
-#ifdef _WIN32
-
-void mutex_create(Mutex *mutex) {
-	InitializeCriticalSection(&mutex->handle);
-}
-
-void mutex_destroy(Mutex *mutex) {
-	DeleteCriticalSection(&mutex->handle);
-}
-
-void mutex_lock(Mutex *mutex) {
-	EnterCriticalSection(&mutex->handle);
-}
-
-void mutex_unlock(Mutex *mutex) {
-	LeaveCriticalSection(&mutex->handle);
-}
-
-#else
-
-void mutex_create(Mutex *mutex) {
-	pthread_mutex_init(&mutex->handle, NULL);
-}
-
-void mutex_destroy(Mutex *mutex) {
-	pthread_mutex_destroy(&mutex->handle);
-}
-
-void mutex_lock(Mutex *mutex) {
-	pthread_mutex_lock(&mutex->handle);
-}
-
-void mutex_unlock(Mutex *mutex) {
-	pthread_mutex_unlock(&mutex->handle);
-}
-#endif
-
-/*****************************************************************************
- *
  *                                 Event
  *
  *****************************************************************************/
@@ -1462,146 +790,6 @@ static int event_wait(Event *event, uint32_t timeout) { // in msec
 	pthread_mutex_unlock(&event->mutex);
 
 	return ret;
-}
-
-#endif
-
-/*****************************************************************************
- *
- *                                 Semaphore
- *
- *****************************************************************************/
-
-#ifdef _WIN32
-
-static void semaphore_create(Semaphore *semaphore) {
-	semaphore->handle = CreateSemaphore(NULL, 0, INT32_MAX, NULL);
-}
-
-static void semaphore_destroy(Semaphore *semaphore) {
-	CloseHandle(semaphore->handle);
-}
-
-static int semaphore_acquire(Semaphore *semaphore) {
-	return WaitForSingleObject(semaphore->handle, INFINITE) != WAIT_OBJECT_0 ? -1 : 0;
-}
-
-static void semaphore_release(Semaphore *semaphore) {
-	ReleaseSemaphore(semaphore->handle, 1, NULL);
-}
-
-#else
-
-static void semaphore_create(Semaphore *semaphore) {
-#ifdef __APPLE__
-	// Mac OS X does not support unnamed semaphores, so we fake them. Unlink
-	// first to ensure that there is no existing semaphore with that name.
-	// Then open the semaphore to create a new one. Finally unlink it again to
-	// avoid leaking the name. The semaphore will work fine without a name.
-	char name[100];
-
-	snprintf(name, sizeof(name), "tf-ipcon-%p", semaphore);
-
-	sem_unlink(name);
-	semaphore->pointer = sem_open(name, O_CREAT | O_EXCL, S_IRWXU, 0);
-	sem_unlink(name);
-#else
-	semaphore->pointer = &semaphore->object;
-
-	sem_init(semaphore->pointer, 0, 0);
-#endif
-}
-
-static void semaphore_destroy(Semaphore *semaphore) {
-#ifdef __APPLE__
-	sem_close(semaphore->pointer);
-#else
-	sem_destroy(semaphore->pointer);
-#endif
-}
-
-static int semaphore_acquire(Semaphore *semaphore) {
-	return sem_wait(semaphore->pointer) < 0 ? -1 : 0;
-}
-
-static void semaphore_release(Semaphore *semaphore) {
-	sem_post(semaphore->pointer);
-}
-
-#endif
-
-/*****************************************************************************
- *
- *                                 Thread
- *
- *****************************************************************************/
-
-#ifdef _WIN32
-
-static DWORD WINAPI thread_wrapper(void *opaque) {
-	Thread *thread = (Thread *)opaque;
-
-	thread->function(thread->opaque);
-
-	return 0;
-}
-
-static int thread_create(Thread *thread, ThreadFunction function, void *opaque) {
-	thread->function = function;
-	thread->opaque = opaque;
-
-	thread->handle = CreateThread(NULL, 0, thread_wrapper, thread, 0, &thread->id);
-
-	return thread->handle == NULL ? -1 : 0;
-}
-
-static void thread_destroy(Thread *thread) {
-	CloseHandle(thread->handle);
-}
-
-static bool thread_is_current(Thread *thread) {
-	return thread->id == GetCurrentThreadId();
-}
-
-static void thread_join(Thread *thread) {
-	WaitForSingleObject(thread->handle, INFINITE);
-}
-
-static void thread_sleep(int msec) {
-	Sleep(msec);
-}
-
-#else
-
-static void *thread_wrapper(void *opaque) {
-	Thread *thread = (Thread *)opaque;
-
-	thread->function(thread->opaque);
-
-	return NULL;
-}
-
-static int thread_create(Thread *thread, ThreadFunction function, void *opaque) {
-	thread->function = function;
-	thread->opaque = opaque;
-
-	return pthread_create(&thread->handle, NULL, thread_wrapper, thread);
-}
-
-static void thread_destroy(Thread *thread) {
-	(void)thread;
-}
-
-static bool thread_is_current(Thread *thread) {
-	return pthread_equal(thread->handle, pthread_self()) ? true : false;
-}
-
-static void thread_join(Thread *thread) {
-	pthread_join(thread->handle, NULL);
-}
-
-static void thread_sleep(int msec) {
-	usleep(msec * 1000);
 }
 
 #endif

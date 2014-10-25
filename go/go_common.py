@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-C/C++ Generator
+Go Generator
 Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
 Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
 
-c_common.py: Common Library for generation of C/C++ bindings and documentation
+go_common.py: Common Library for generation of Go bindings and documentation
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -30,12 +30,12 @@ import os
 sys.path.append(os.path.split(os.getcwd())[0])
 import common
 
-class CPacket(common.Packet):
-    def get_c_parameter_list(self):
+class GoPacket(common.Packet):
+    def get_go_parameter_list(self):
         param = ''
 
         for element in self.get_elements():
-            c_type = element.get_c_type(True)
+            go_type = element.get_go_type(True)
             name = element.get_underscore_name()
             pointer = ''
             arr = ''
@@ -47,12 +47,12 @@ class CPacket(common.Packet):
                 arr = '[{0}]'.format(element.get_cardinality())
                 pointer = ''
 
-            param += ', {0} {1}{2}{3}'.format(c_type, pointer, name, arr)
+            param += ', {0} {1}{2}{3}'.format(go_type, pointer, name, arr)
 
         return param
 
-class CElement(common.Element):
-    def get_c_type(self, is_in_signature):
+class GoElement(common.Element):
+    def get_go_type(self, is_in_signature):
         if self.get_type() == 'string':
             if self.get_direction() == 'in' and is_in_signature:
                 return 'const char'

@@ -585,16 +585,16 @@ void {0}_register_callback({1} *{0}, uint8_t id, void *callback, void *user_data
         return func.format(self.get_underscore_name(), self.get_camel_case_name(), self.get_category())
 
     def get_go_source(self):
-        source  = self.get_c_include_c()
-        source += self.get_c_typedefs()
-        source += self.get_c_structs()
-        source += self.get_c_callback_wrapper_functions()
-        source += self.get_c_create_function()
-        source += self.get_c_destroy_function()
-        source += self.get_c_response_expected_functions()
-        source += self.get_c_register_callback_function()
-        source += self.get_c_functions()
-        source += self.get_c_end_c()
+        source  = self.get_go_include_go()
+        source += self.get_go_typedefs()
+        source += self.get_go_structs()
+        source += self.get_go_callback_wrapper_functions()
+        source += self.get_go_create_function()
+        source += self.get_go_destroy_function()
+        source += self.get_go_response_expected_functions()
+        source += self.get_go_register_callback_function()
+        source += self.get_go_functions()
+        source += self.get_go_end_go()
 
         return source
 
@@ -742,7 +742,7 @@ class GoBindingsGenerator(common.BindingsGenerator):
         c.close()
 
         if device.is_released():
-            self.released_files.append(filename + '.c')
+            self.released_files.append(filename + '.go')
 
 def generate(bindings_root_directory):
     common.generate(bindings_root_directory, 'en', GoBindingsGenerator)
